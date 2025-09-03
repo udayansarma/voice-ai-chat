@@ -11,6 +11,7 @@ lerna-debug.log*
 # Ignore environment files
 .env
 .env.*
+!.env.example
 
 # Ignore OS/editor files
 .DS_Store
@@ -21,3 +22,18 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Data and local DB files
+data/
+data/*
+*.db
+*.sqlite
+*.db-journal
+*.sqlite-journal
+
+# Test coverage
+coverage/
+
+# Deployment artifacts generated at repo root
+../deploy_artifacts/
+../deploy_artifacts/*.zip

@@ -69,9 +69,25 @@ speechConfig.speechSynthesisVoiceName = 'en-US-JennyNeural';
 // Set the output format to 24KHz audio
 speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio24Khz160KBitRateMonoMp3;
 
-// Health check endpoint
+// Health check endpoints (/api/health existing + lightweight /healthz for platform checks)
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Server is running' });
+});
+app.get('/healthz', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// Runtime configuration endpoint (Option 2)
+// Returns values that can change at App Service setting level without rebuilding the client.
+// apiBaseUrl can be overridden via APP setting API_BASE_URL; defaults to this server's base + '/api'.
+app.get('/runtime-config', (req: Request, res: Response) => {
+  const host = req.get('host');
+  const protocolHeader = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+  const selfBase = `${protocolHeader}://${host}`;
+  const apiBaseEnv = process.env.API_BASE_URL || process.env.VITE_API_URL; // allow reuse of existing var if set
+  const apiBaseUrl = apiBaseEnv || `${selfBase}/api`;
+  res.setHeader('Cache-Control', 'no-store, must-revalidate');
+  res.json({ apiBaseUrl, updatedAt: new Date().toISOString() });
 });
 
 // Register authentication routes (login/logout/status)
@@ -175,9 +191,10 @@ async function startServer() {
     
     // Configure database service based on environment
     databaseServiceFactory.configure({
-      useDatabaseByDefault: true, // Always use database for better performance
-      fallbackToFiles: true, // Fallback to files if database fails
-      dbPath: process.env.DATABASE_PATH // Allow custom database path
+      useDatabaseByDefault: true,
+      fallbackToFiles: true,
+      // Precedence: SQLITE_DB_PATH > DATABASE_PATH (legacy) > factory default
+      dbPath: process.env.SQLITE_DB_PATH || process.env.DATABASE_PATH || databaseServiceFactory.getConfiguredPath()
     });
       // Initialize database service
     console.log('🔧 Initializing database service...');

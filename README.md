@@ -28,6 +28,112 @@ A voice-based chat application that uses Azure OpenAI's Chat API and Azure Speec
 
 ## Setup
 
+## Azure Deployment Options
+
+This project supports two parallel Azure deployment models:
+
+1. Container-Based (Existing) – Uses Docker images pushed to ACR and deployed to App Service (see `deploy-azure-containers.ps1`).
+2. Native App Service (New) – No custom containers; source builds locally and is zip deployed with `deploy-appservice.ps1`.
+
+Both paths are maintained; choose native for faster iteration and simpler operations, container for full OS-level control.
+
+### Native App Service Deployment (Unified Script)
+
+Script: `deploy-appservice.ps1`
+
+Capabilities:
+- Deploy server (Node/Express) and client (Vite static assets) separately or together.
+- Build locally (production bundles) and Zip Deploy.
+- Set App Settings idempotently (no destructive overwrite of unrelated settings).
+- Dry run (`-WhatIf`) and selective build skip (`-NoBuild`).
+- Runtime-configurable API base URL without rebuilding client.
+
+Example (deploy both):
+```powershell
+pwsh d:\code\voice-ai-chat\deploy-appservice.ps1 `
+   -SubscriptionId <SUB_ID> `
+   -ResourceGroupName <RG_NAME> `
+   -ServerAppName voice-ai-server-native `
+   -ClientAppName voice-ai-client-native
+```
+
+Server only (skip client):
+```powershell
+pwsh d:\code\voice-ai-chat\deploy-appservice.ps1 -SubscriptionId <SUB_ID> -ResourceGroupName <RG_NAME> -ServerAppName voice-ai-server-native -SkipClient
+```
+
+Client only (after a previous server deploy):
+```powershell
+pwsh d:\code\voice-ai-chat\deploy-appservice.ps1 -SubscriptionId <SUB_ID> -ResourceGroupName <RG_NAME> -ClientAppName voice-ai-client-native -SkipServer
+```
+
+Dry run (no changes):
+```powershell
+pwsh d:\code\voice-ai-chat\deploy-appservice.ps1 -SubscriptionId <SUB_ID> -ResourceGroupName <RG_NAME> -ServerAppName voice-ai-server-native -ClientAppName voice-ai-client-native -WhatIf
+```
+
+Override API base URL explicitly:
+```powershell
+pwsh d:\code\voice-ai-chat\deploy-appservice.ps1 -SubscriptionId <SUB_ID> -ResourceGroupName <RG_NAME> -ServerAppName voice-ai-server-native -ClientAppName voice-ai-client-native -ApiBaseUrl https://custom.example.com/api
+```
+
+### Runtime Configuration (API Base URL)
+
+The server exposes `GET /runtime-config` returning JSON:
+```json
+{ "apiBaseUrl": "https://<server-app>.azurewebsites.net/api", "updatedAt": "<ISO timestamp>" }
+```
+The client loads this before React mounts (see `client/src/utils/runtimeConfig.ts`). Changing the App Setting `API_BASE_URL` (or `VITE_API_URL` fallback) on the server updates the value for users on next page load—no client rebuild required.
+
+### SQLite Persistence (Native Path)
+
+- DB file path env precedence: `SQLITE_DB_PATH` > `DATABASE_PATH` > default.
+- Default Azure path: `/home/site/data/voice-ai-documents.db` (persistent between restarts & deployments; NOT in `wwwroot`).
+- Single-instance constraint: Do not scale out with raw SQLite on network storage (risk of locking). Keep instance count = 1 until migrating to a managed DB.
+
+### SPA Deep Link Fallback
+
+- `client/public/404.html` injects a lightweight script that loads `index.html` and restores the original path, enabling deep links (`/chat`, etc.).
+- This file is copied into the deployment artifact automatically; App Service will serve it for unknown routes, allowing React Router to take over.
+
+### Key App Settings Managed by Script
+
+Server:
+- `NODE_ENV=production`
+- `PORT=8080`
+- `WEBSITE_RUN_FROM_PACKAGE=1`
+- `SQLITE_DB_PATH=/home/site/data/voice-ai-documents.db`
+- `API_BASE_URL` (computed or provided)
+
+Client:
+- `NODE_ENV=production`
+- `WEBSITE_RUN_FROM_PACKAGE=1`
+- `VITE_API_URL` (set for backward compatibility; runtime-config usually preferred)
+
+Add your existing service keys (`AZURE_OPENAI_*`, `AZURE_SPEECH_*`, auth settings) manually or extend the script.
+
+### Operational Notes & Limitations
+
+- Rolling back: Redeploy prior produced zip (`deploy_artifacts/server.zip` or `client.zip`) with the same script using `-NoBuild`.
+- Logs: Use `az webapp log tail` per app. Ensure App Service logging is enabled if deeper diagnostics needed.
+- Health: `/healthz` (lightweight) and `/api/health` (original) endpoints available.
+- Fallback risk: If 404.html fails to fetch `index.html` (rare), user sees a minimal error message.
+- Security: Secrets are stored as App Settings (not Key Vault) per current scope; rotate manually.
+
+### When to Prefer Containers
+
+Stay with or use the container path if you require:
+- Custom OS-level packages / libs beyond Node runtime.
+- Consistent image immutability across multiple environments via ACR.
+- Advanced Nginx tuning for static assets beyond basic CDN caching.
+
+### Future Enhancements (Possible)
+- Managed DB migration (PostgreSQL/Azure SQL) to allow scale-out.
+- Slot-based blue/green deployments.
+- Key Vault + managed identity for secret retrieval.
+- GitHub Actions CI/CD pipeline referencing this script.
+
+
 ### Backend Setup
 
 1. Navigate to the server directory:

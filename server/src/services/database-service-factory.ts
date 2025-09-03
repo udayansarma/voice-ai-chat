@@ -25,13 +25,19 @@ export class DatabaseServiceFactory {
   private initializationError: Error | null = null;
 
   private constructor() {    // Default configuration
+    const defaultPersistentDbPath = process.env.WEBSITE_SITE_NAME
+      ? '/home/site/data/voice-ai-documents.db' // Azure App Service persistent storage
+      : path.join(process.cwd(), 'data', 'voice-ai-documents.db'); // Local/dev fallback
+
     this.config = {
       useDatabaseByDefault: process.env.NODE_ENV !== 'development',
       fallbackToFiles: true,
-      dbPath: process.env.DATABASE_PATH,
-      personasDir: path.join(process.cwd(), 'src', 'personas'),
-      templatesDir: path.join(process.cwd(), 'src', 'prompts')
+      // Precedence: explicit SQLITE_DB_PATH > legacy DATABASE_PATH > environment specific default
+      dbPath: process.env.SQLITE_DB_PATH || process.env.DATABASE_PATH || defaultPersistentDbPath,
+      personasDir: DatabaseServiceFactory.resolvePersonasDir(),
+      templatesDir: DatabaseServiceFactory.resolvePromptsDir()
     };
+    console.log('[DatabaseServiceFactory] Initial DB path configured:', this.config.dbPath);
   }
 
   public static getInstance(): DatabaseServiceFactory {
@@ -43,6 +49,13 @@ export class DatabaseServiceFactory {
 
   public configure(config: Partial<DatabaseServiceConfig>): void {
     this.config = { ...this.config, ...config };
+    if (config.dbPath) {
+      console.log('[DatabaseServiceFactory] DB path overridden via configure():', this.config.dbPath);
+    }
+  }
+
+  public getConfiguredPath(): string | undefined {
+    return this.config.dbPath;
   }
 
   public async initializeDatabase(): Promise<void> {
@@ -223,20 +236,34 @@ export class DatabaseServiceFactory {
   }
 
   // File-based fallback utilities
-  public resolvePersonasDir(): string {
+  public static resolvePersonasDir(): string {
     const distPath = path.join(__dirname, '..', 'personas');
     if (fs.existsSync(distPath)) return distPath;
     const srcPath = path.join(__dirname, '..', '..', 'src', 'personas');
     if (fs.existsSync(srcPath)) return srcPath;
+    // Try relative to cwd (deployment scenario)
+    const cwdPersonas = path.join(process.cwd(), 'personas');
+    if (fs.existsSync(cwdPersonas)) return cwdPersonas;
     throw new Error('Personas directory not found');
   }
 
-  public resolvePromptsDir(): string {
+  public static resolvePromptsDir(): string {
     const distPath = path.join(__dirname, '..', 'prompts');
     if (fs.existsSync(distPath)) return distPath;
     const srcPath = path.join(__dirname, '..', '..', 'src', 'prompts');
     if (fs.existsSync(srcPath)) return srcPath;
+    // Try relative to cwd (deployment scenario)
+    const cwdPrompts = path.join(process.cwd(), 'prompts');
+    if (fs.existsSync(cwdPrompts)) return cwdPrompts;
     throw new Error('Prompts directory not found');
+  }
+
+  public resolvePersonasDir(): string {
+    return DatabaseServiceFactory.resolvePersonasDir();
+  }
+
+  public resolvePromptsDir(): string {
+    return DatabaseServiceFactory.resolvePromptsDir();
   }
 }
 

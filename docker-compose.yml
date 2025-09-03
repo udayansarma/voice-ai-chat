@@ -40,6 +40,7 @@ services:
       - ./server/src/prompts:/app/src/prompts:ro
       - ./server/src/scenarios:/app/src/scenarios:ro
       - ./server/src/util:/app/src/util:ro
+      - ./server/src/services/conversation-evaluation.prompty:/app/dist/services/conversation-evaluation.prompty:ro
     restart: unless-stopped
 
   client:

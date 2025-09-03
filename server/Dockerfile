@@ -23,6 +23,10 @@ COPY --from=builder /app/src/util ./src/util
 COPY --from=builder /app/src/scenarios ./dist/scenarios
 # Also copy util to dist for runtime (for moods.json and others)
 COPY --from=builder /app/src/util ./dist/util
+# Copy service-specific templates to dist folder to match compiled code paths
+COPY --from=builder /app/src/services/conversation-evaluation.prompty ./dist/services/
+# Make sure we copy any other prompty files that might be added in the future
+# COPY --from=builder /app/src/services/*.prompty ./dist/services/
 # Ensure data directory exists and is writable
 RUN mkdir -p ./data && chmod 777 ./data
 # Copy startup script

@@ -1,29 +1,68 @@
 import axios from 'axios';
 import { getItem, setItem } from '../utils/localStorage';
+import { getRuntimeApiBaseUrl } from './runtimeConfig';
 
 // Runtime configuration from window.ENV (loaded from /config.js)
 declare global {
   interface Window {
     ENV: {
       VITE_API_URL: string;
+      RUNTIME_CONFIG_URL?: string;
     };
   }
 }
 
-const getApiBaseUrl = () => {
-  // Priority: runtime config > build-time env > empty (for local dev with proxy)
-  return window.ENV?.VITE_API_URL || import.meta.env.VITE_API_URL || '';
-};
+const getApiBaseUrl = () => getRuntimeApiBaseUrl();
 
+// Create the client without a fixed baseURL so we can compute it per request
 const apiClient = axios.create({
-  baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 
-// Log cookie header on each request
 apiClient.interceptors.request.use(config => {
-  console.log('[apiClient] Sending request to', config.url, 'with cookies:', document.cookie);
-  console.log('[apiClient] Base URL:', getApiBaseUrl());
+  // Derive server origin from runtime API base URL, stripping any path like '/api'
+  const baseRaw = getApiBaseUrl() || '';
+  let origin = '';
+  try {
+    origin = baseRaw ? new URL(baseRaw).origin : '';
+  } catch {
+    origin = baseRaw.replace(/\/?api\/?$/i, '').replace(/\/$/, '');
+    try { origin = origin ? new URL(origin).origin : origin; } catch { /* keep best-effort */ }
+  }
+
+  let url = config.url ?? '';
+  // If absolute URL already, leave it (assumes caller intended it)
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const u = new URL(url);
+      // Normalize duplicated /api segments at the beginning of pathname
+      let p = u.pathname || '/';
+      // Collapse multiple leading /api/ occurrences to a single
+      p = p.replace(/^\/(?:api\/)+/i, '/api/');
+      // Ensure single leading slash
+      if (!p.startsWith('/')) p = '/' + p;
+      u.pathname = p;
+      config.url = u.toString();
+    } catch {
+      /* keep original absolute URL if parsing fails */
+    }
+    return config;
+  }
+
+  // Ensure request path starts with exactly one '/api'
+  if (!url.startsWith('/')) url = '/' + url;
+  if (!url.startsWith('/api')) url = '/api' + url;
+
+  // Build absolute URL using the computed origin
+  if (origin) {
+    config.url = origin + url;
+    // Remove baseURL to avoid axios re-merging
+    delete (config as any).baseURL;
+  } else {
+    // Fallback to relative (will hit client origin) – acceptable only during local dev
+    config.url = url;
+  }
+
   return config;
 });
 

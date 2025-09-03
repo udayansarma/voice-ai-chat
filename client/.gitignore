@@ -9,6 +9,16 @@ lerna-debug.log*
 
 .env
 .env.*
+# Build output
+dist/
+**/.vite/
+
+# Deployment artifacts generated at repo root
+../deploy_artifacts/
+../deploy_artifacts/*.zip
+
+# Test coverage
+coverage/
 
 # Media files
 *.wav

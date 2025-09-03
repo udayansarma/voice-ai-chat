@@ -82,6 +82,20 @@ export class FileSyncDatabase extends DocumentDatabase {
       } else {
         console.log('📊 Existing database - skipping mood file sync (using database moods)');
       }
+
+      // Fallback: if moods table exists but is empty (e.g., after schema upgrade), seed from file once
+      if (this.db) {
+        try {
+          const result = this.db.exec('SELECT COUNT(*) as count FROM moods');
+          const count = result?.[0]?.values?.[0]?.[0] ?? 0;
+          if (count === 0) {
+            console.log('🪄 Moods table is empty. Seeding moods from file as a one-time fallback...');
+            await this.syncMoods();
+          }
+        } catch (e) {
+          console.warn('[syncAllFiles] Unable to check/seed moods table:', e);
+        }
+      }
     } catch (error) {
       console.error('❌ Error during file sync:', error);
       throw error;

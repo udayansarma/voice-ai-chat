@@ -9,6 +9,13 @@ server/dist/
 dist/
 client/dist/
 
+# Deployment artifacts
+deploy_artifacts/
+deploy_artifacts/*.zip
+
+# Test coverage
+coverage/
+
 # Logs
 logs/
 *.log
@@ -48,6 +55,8 @@ server/data/
 server/data/*
 *.db
 *.sqlite
+*.db-journal
+*.sqlite-journal
 
 # Package lock files (keep these tracked for reproducibility)
 # (Do NOT ignore package-lock.json unless you have a specific reason)
@@ -56,6 +65,9 @@ server/data/*
 # Temp folders
 server/src/temp/
 server/dist/temp/
+
+# Vite cache
+**/.vite/
 
 # Terraform
 .terraform/

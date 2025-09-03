@@ -178,6 +178,19 @@ export class DocumentDatabase {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_documents_file_path ON documents(file_path)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_documents_type_name ON documents(type, name)`);
       
+      // Ensure moods table exists (used by FileSyncDatabase and CRUD routes)
+      console.log('[DB] Ensuring moods table exists...');
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS moods (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          mood TEXT NOT NULL UNIQUE,
+          description TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_moods_mood ON moods(mood)`);
+      
       console.log('[DB] Database schema initialized successfully');
     } catch (error) {
       console.error('[DB] Failed to initialize database schema:', error);

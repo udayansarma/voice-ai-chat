@@ -156,11 +156,38 @@ export class PrompyLoader {
   }
   
   public static loadTemplateFromPath(filePath: string, parameters?: Record<string, any>): { systemMessage: string; configuration: PrompyConfiguration } {
-    if (!fs.existsSync(filePath)) {
+    let resolvedPath = filePath;
+    
+    // Try the direct path first
+    if (!fs.existsSync(resolvedPath)) {
+      // If we're in dist folder, try to find it in source
+      if (resolvedPath.includes('/dist/') || resolvedPath.includes('\\dist\\')) {
+        const fileName = path.basename(resolvedPath);
+        const srcPath = resolvedPath.replace(
+          path.join('dist', path.sep), 
+          path.join('src', path.sep)
+        );
+        
+        if (fs.existsSync(srcPath)) {
+          console.log(`Template found at source path: ${srcPath}`);
+          resolvedPath = srcPath;
+        } else {
+          // As a last resort, check if it's in the prompts directory
+          const promptsPath = path.join(process.cwd(), 'src', 'prompts', fileName);
+          if (fs.existsSync(promptsPath)) {
+            console.log(`Template found in prompts directory: ${promptsPath}`);
+            resolvedPath = promptsPath;
+          }
+        }
+      }
+    }
+    
+    // If still not found, throw error
+    if (!fs.existsSync(resolvedPath)) {
       throw new Error(`Prompty template not found: ${filePath}`);
     }
     
-    const template = this.parseTemplate(filePath);
+    const template = this.parseTemplate(resolvedPath);
     
     if (parameters) {
       // Render template with parameters
