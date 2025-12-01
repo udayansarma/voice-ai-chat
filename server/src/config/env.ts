@@ -9,8 +9,14 @@ export const config = {
   azureOpenAiKey: process.env.AZURE_OPENAI_KEY,
   azureOpenAiDeployment: process.env.AZURE_OPENAI_DEPLOYMENT,
   azureOpenAiModel: process.env.AZURE_OPENAI_MODEL || 'gpt-4',
+  azureOpenAiRealtimeEndpoint: process.env.AZURE_OPENAI_REALTIME_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT,
+  azureOpenAiRealtimeKey: process.env.AZURE_OPENAI_REALTIME_KEY || process.env.AZURE_OPENAI_KEY,
+  azureOpenAiRealtimeDeployment: process.env.AZURE_OPENAI_REALTIME_DEPLOYMENT || 'gpt-realtime',
   azureSpeechKey: process.env.AZURE_SPEECH_KEY || 'your-azure-speech-key',
-  azureSpeechRegion: process.env.AZURE_SPEECH_REGION || 'eastus',  // Azure AI Agent Service configuration
+  azureSpeechRegion: process.env.AZURE_SPEECH_REGION || 'eastus',
+  // Feature flags
+  useRealtimeApi: process.env.USE_REALTIME_API === 'true',
+  // Azure AI Agent Service configuration
   azureAiFoundryProjectEndpoint: process.env.AZURE_AI_FOUNDRY_PROJECT_ENDPOINT,
   azureEvaluationAgentId: process.env.AZURE_EVALUATION_AGENT_ID,
   // Message window configuration
