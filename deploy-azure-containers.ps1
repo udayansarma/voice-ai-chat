@@ -57,6 +57,12 @@ $AZURE_OPENAI_KEY = "your-openai-api-key-here"
 $AZURE_OPENAI_DEPLOYMENT = "gpt-4o"
 $AZURE_OPENAI_MODEL = "gpt-4o"
 
+# Azure OpenAI Realtime API Configuration (OPTIONAL - for voice chat features)
+$AZURE_OPENAI_REALTIME_ENDPOINT = "https://your-openai-resource.openai.azure.com/openai"
+$AZURE_OPENAI_REALTIME_KEY = "your-realtime-api-key-here"
+$AZURE_OPENAI_REALTIME_DEPLOYMENT = "gpt-realtime"
+$USE_REALTIME_API = "true"
+
 # Azure Speech Services Configuration (REQUIRED)
 $AZURE_SPEECH_KEY = "your-speech-service-key-here"
 $AZURE_SPEECH_REGION = $Location
@@ -125,6 +131,14 @@ $requiredSecrets = @{
     "AZURE_SPEECH_KEY" = $AZURE_SPEECH_KEY
     "AZURE_AI_FOUNDRY_PROJECT_ENDPOINT" = $AZURE_AI_FOUNDRY_PROJECT_ENDPOINT
     "AZURE_EVALUATION_AGENT_ID" = $AZURE_EVALUATION_AGENT_ID
+}
+
+# Optional secrets for Realtime API (not validated as required)
+$optionalSecrets = @{
+    "AZURE_OPENAI_REALTIME_ENDPOINT" = $AZURE_OPENAI_REALTIME_ENDPOINT
+    "AZURE_OPENAI_REALTIME_KEY" = $AZURE_OPENAI_REALTIME_KEY
+    "AZURE_OPENAI_REALTIME_DEPLOYMENT" = $AZURE_OPENAI_REALTIME_DEPLOYMENT
+    "USE_REALTIME_API" = $USE_REALTIME_API
 }
 
 $hasValidationErrors = $false
@@ -295,7 +309,25 @@ az webapp identity assign --resource-group $ResourceGroupName --name $ServerAppN
 
 # Set environment variable for client ID in both apps (if needed by app code)
 az webapp config appsettings set --name $ClientAppName --resource-group $ResourceGroupName --settings "AZURE_CLIENT_ID=$MANAGED_IDENTITY_CLIENT_ID"
-az webapp config appsettings set --name $ServerAppName --resource-group $ResourceGroupName --settings "AZURE_CLIENT_ID=$MANAGED_IDENTITY_CLIENT_ID"
+az webapp config appsettings set --name $ServerAppName --resource-group $ResourceGroupName --settings `
+    "AZURE_CLIENT_ID=$MANAGED_IDENTITY_CLIENT_ID" `
+    "AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT" `
+    "AZURE_OPENAI_KEY=$AZURE_OPENAI_KEY" `
+    "AZURE_OPENAI_DEPLOYMENT=$AZURE_OPENAI_DEPLOYMENT" `
+    "AZURE_OPENAI_MODEL=$AZURE_OPENAI_MODEL" `
+    "AZURE_OPENAI_REALTIME_ENDPOINT=$AZURE_OPENAI_REALTIME_ENDPOINT" `
+    "AZURE_OPENAI_REALTIME_KEY=$AZURE_OPENAI_REALTIME_KEY" `
+    "AZURE_OPENAI_REALTIME_DEPLOYMENT=$AZURE_OPENAI_REALTIME_DEPLOYMENT" `
+    "USE_REALTIME_API=$USE_REALTIME_API" `
+    "AZURE_SPEECH_KEY=$AZURE_SPEECH_KEY" `
+    "AZURE_SPEECH_REGION=$AZURE_SPEECH_REGION" `
+    "AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=$AZURE_AI_FOUNDRY_PROJECT_ENDPOINT" `
+    "AZURE_EVALUATION_AGENT_ID=$AZURE_EVALUATION_AGENT_ID" `
+    "AUTH_USERS=$AUTH_USERS" `
+    "SESSION_SECRET=$SESSION_SECRET" `
+    "STORAGE_ACCOUNT_NAME=$StorageAccountName" `
+    "DATABASE_CONTAINER_NAME=$DATABASE_CONTAINER_NAME" `
+    "BACKUP_CONTAINER_NAME=$BACKUP_CONTAINER_NAME"
 
 # =============================================================================
 # RETRIEVE DEPLOYMENT INFORMATION
