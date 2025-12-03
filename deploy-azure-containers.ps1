@@ -63,6 +63,13 @@ $AZURE_OPENAI_REALTIME_KEY = "your-realtime-api-key-here"
 $AZURE_OPENAI_REALTIME_DEPLOYMENT = "gpt-realtime"
 $USE_REALTIME_API = "true"
 
+# Derive resource name from endpoint (extract resource name from URL)
+if ($AZURE_OPENAI_REALTIME_ENDPOINT -match '^https://([^.]+)') {
+    $AZURE_OPENAI_REALTIME_RESOURCE_NAME = $matches[1]
+} else {
+    $AZURE_OPENAI_REALTIME_RESOURCE_NAME = "your-openai-resource"
+}
+
 # Azure Speech Services Configuration (REQUIRED)
 $AZURE_SPEECH_KEY = "your-speech-service-key-here"
 $AZURE_SPEECH_REGION = $Location
@@ -225,6 +232,55 @@ az acr update -n $AcrName --admin-enabled true
 # Get ACR login server
 Write-Info "Getting ACR login server"
 $ACR_LOGIN_SERVER = az acr show --name $AcrName --resource-group $ResourceGroupName --query "loginServer" -o tsv
+
+# =============================================================================
+# AZURE OPENAI REALTIME API DEPLOYMENT CHECK
+# =============================================================================
+
+Write-Step "Checking Azure OpenAI Realtime API Deployment"
+
+# Only check/create deployment if Realtime API is enabled and resource name is provided
+if ($USE_REALTIME_API -eq "true" -and $AZURE_OPENAI_REALTIME_RESOURCE_NAME -notlike "*your-*") {
+    Write-Info "Checking if Realtime API deployment exists: $AZURE_OPENAI_REALTIME_DEPLOYMENT"
+    
+    $realtimeDeploymentExists = az cognitiveservices account deployment show `
+        --name $AZURE_OPENAI_REALTIME_RESOURCE_NAME `
+        --resource-group $ResourceGroupName `
+        --deployment-name $AZURE_OPENAI_REALTIME_DEPLOYMENT `
+        --query "name" -o tsv 2>$null
+    
+    if (-not $realtimeDeploymentExists) {
+        Write-Info "Realtime API deployment '$AZURE_OPENAI_REALTIME_DEPLOYMENT' not found"
+        Write-Info "Creating deployment using create-realtime-deployment.ps1..."
+        
+        # Call the create-realtime-deployment script
+        $createScriptPath = Join-Path $PSScriptRoot "create-realtime-deployment.ps1"
+        if (Test-Path $createScriptPath) {
+            & $createScriptPath `
+                -SubscriptionId $SubscriptionId `
+                -ResourceGroupName $ResourceGroupName `
+                -OpenAIResourceName $AZURE_OPENAI_REALTIME_RESOURCE_NAME `
+                -DeploymentName $AZURE_OPENAI_REALTIME_DEPLOYMENT `
+                -Location "eastus2"
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to create Realtime API deployment"
+                Write-Info "You can create it manually or run create-realtime-deployment.ps1 separately"
+                Write-Info "Continuing with deployment..."
+            } else {
+                Write-Success "Realtime API deployment created successfully"
+            }
+        } else {
+            Write-Error "create-realtime-deployment.ps1 script not found at: $createScriptPath"
+            Write-Info "Please create the deployment manually or ensure the script is in the same directory"
+            Write-Info "Continuing with deployment..."
+        }
+    } else {
+        Write-Success "Realtime API deployment '$AZURE_OPENAI_REALTIME_DEPLOYMENT' already exists"
+    }
+} else {
+    Write-Info "Realtime API is disabled or resource name not configured, skipping deployment check"
+}
 
 # =============================================================================
 # BUILD AND PUSH DOCKER IMAGES
